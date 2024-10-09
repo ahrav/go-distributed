@@ -11,9 +11,26 @@ import (
 type EntryType int
 
 const (
-	// EntryTypeData indicates a data entry type.
-	EntryTypeData EntryType = iota
+	DATA EntryType = iota
+	METADATA
+	CRC
 )
+
+var entryTypeMap = map[int]EntryType{
+	0: DATA,
+	1: METADATA,
+	2: CRC,
+}
+
+func EntryTypeValueOf(value int) (EntryType, error) {
+	entryType, exists := entryTypeMap[value]
+	if !exists {
+		return 0, fmt.Errorf("invalid entry type value: %d", value)
+	}
+	return entryType, nil
+}
+
+func (e EntryType) GetValue() int { return int(e) }
 
 const (
 	// sizeOfInt represents the size of an integer in bytes.
@@ -36,7 +53,7 @@ func NewWALEntry(data []byte) *Entry {
 	return &Entry{
 		EntryIndex: -1,
 		Data:       data,
-		EntryType:  EntryTypeData,
+		EntryType:  DATA,
 		Timestamp:  time.Now().UnixMilli(),
 		Generation: 0,
 	}
