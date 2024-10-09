@@ -20,8 +20,8 @@ type Segment struct {
 
 // NewWALSegment creates a new WAL segment starting at the given index and file path.
 // It returns a pointer to the Segment and an error if any occurs during file operations.
-func NewWALSegment(startIndex int64, filePath string) (*Segment, error) {
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+func NewWALSegment(startIndex int64, filepath string) (*Segment, error) {
+	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +34,19 @@ func NewWALSegment(startIndex int64, filePath string) (*Segment, error) {
 		return nil, err
 	}
 	return segment, nil
+}
+
+// Open creates a WAL segment from the provided directory and start index, ensuring that the appropriate WAL segment file is returned.
+func Open(startIndex int64, walDir string) (*Segment, error) {
+	fileName := fmt.Sprintf("wal_%d.log", startIndex)
+	filePath := filepath.Join(walDir, fileName)
+	return NewWALSegment(startIndex, filePath)
+}
+
+// OpenFromFile initializes a WAL segment from an existing file, which can be used for reading or appending new entries.
+func OpenFromFile(file *os.File) (*Segment, error) {
+	baseOffset := getBaseOffsetFromFileName(filepath.Base(file.Name()))
+	return NewWALSegment(baseOffset, file.Name())
 }
 
 // GetFileName returns the name of the segment file.
@@ -189,4 +202,112 @@ func getBaseOffsetFromFileName(fileName string) int64 {
 	var offset int64
 	fmt.Sscanf(fileName, "wal_%d.log", &offset)
 	return offset
+}
+
+// Delete removes the segment file from the filesystem.
+// It first closes the file handle and then deletes the file.
+// Returns an error if any occurs during the file close or delete operations.
+func (w *Segment) Delete() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if err := w.file.Close(); err != nil {
+		return err
+	}
+	return os.Remove(w.file.Name())
+}
+
+// Size returns the size of the segment file in bytes.
+// It retrieves the file information and extracts the size.
+// Returns the file size and an error if any occurs during the file stat operation.
+func (w *Segment) Size() (int64, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	fileInfo, err := w.file.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fileInfo.Size(), nil
+}
+
+// GetLastLogEntryTimestamp returns the timestamp of the last log entry in the segment.
+// It reads the last entry based on the highest index in the entryOffsets map.
+// Returns the timestamp of the last log entry and an error if any occurs during the read operation.
+func (w *Segment) GetLastLogEntryTimestamp() (int64, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if len(w.entryOffsets) == 0 {
+		return 0, nil
+	}
+
+	lastIndex := int64(0)
+	for index := range w.entryOffsets {
+		if index > lastIndex {
+			lastIndex = index
+		}
+	}
+
+	entry, err := w.ReadAt(lastIndex)
+	if err != nil {
+		return 0, err
+	}
+	return entry.Timestamp, nil
+}
+
+// WriteToChannel writes the provided data to the segment file and flushes it to disk.
+// It ensures that the data is written and synchronized to the filesystem.
+// Returns an error if any occurs during the write or sync operations.
+func (w *Segment) WriteToChannel(data []byte) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	_, err := w.file.Write(data)
+	if err != nil {
+		return err
+	}
+	return w.file.Sync() // Flush the data to disk.
+}
+
+// GetLastLogEntryIndex returns the index of the last log entry in the segment.
+// It finds the highest index in the entryOffsets map.
+// Returns the index of the last log entry and an error if any occurs during the read operation.
+func (w *Segment) GetLastLogEntryIndex() (int64, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if len(w.entryOffsets) == 0 {
+		return 0, nil
+	}
+
+	lastIndex := int64(0)
+	for index := range w.entryOffsets {
+		if index > lastIndex {
+			lastIndex = index
+		}
+	}
+	return lastIndex, nil
+}
+
+// ReadAll reads all entries from the segment file.
+// It iterates through the file and reads each entry until the end of the file is reached.
+// Returns a slice of entries and an error if any occurs during the read operations.
+func (w *Segment) ReadAll() ([]*Entry, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var entries []*Entry
+	for offset := int64(0); ; {
+		entry, err := readWALEntryAt(w.file, offset)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		entries = append(entries, entry)
+		offset += int64(entry.LogEntrySize())
+	}
+	return entries, nil
 }
