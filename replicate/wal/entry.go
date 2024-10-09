@@ -70,9 +70,7 @@ func (e *Entry) Serialize() []byte {
 }
 
 // LogEntrySize returns the total size of the log entry including metadata.
-func (e *Entry) LogEntrySize() int {
-	return sizeOfInt + e.SerializedSize()
-}
+func (e *Entry) LogEntrySize() int { return sizeOfInt + e.SerializedSize() }
 
 // SerializedSize returns the size of the serialized entry.
 func (e *Entry) SerializedSize() int {
@@ -80,29 +78,19 @@ func (e *Entry) SerializedSize() int {
 }
 
 // sizeOfData returns the size of the data in the entry.
-func (e *Entry) sizeOfData() int {
-	return len(e.Data)
-}
+func (e *Entry) sizeOfData() int { return len(e.Data) }
 
 // sizeOfEntryType returns the size of the entry type field.
-func (e *Entry) sizeOfEntryType() int {
-	return sizeOfInt
-}
+func (e *Entry) sizeOfEntryType() int { return sizeOfInt }
 
 // sizeOfTimestamp returns the size of the timestamp field.
-func (e *Entry) sizeOfTimestamp() int {
-	return sizeOfLong
-}
+func (e *Entry) sizeOfTimestamp() int { return sizeOfLong }
 
 // sizeOfGeneration returns the size of the generation field.
-func (e *Entry) sizeOfGeneration() int {
-	return sizeOfLong
-}
+func (e *Entry) sizeOfGeneration() int { return sizeOfLong }
 
 // sizeOfIndex returns the size of the index field.
-func (e *Entry) sizeOfIndex() int {
-	return sizeOfLong
-}
+func (e *Entry) sizeOfIndex() int { return sizeOfLong }
 
 // MatchEntry checks if the current entry matches another entry based on generation, index, and data.
 func (e *Entry) MatchEntry(entry *Entry) bool {
