@@ -4,28 +4,23 @@ import (
 	"os"
 	"sort"
 	"sync"
-)
 
-// Config represents the configuration settings for the Write-Ahead Log (WAL).
-type Config struct {
-	WalDir     string // The directory where the WAL files are stored.
-	MaxLogSize int64  // The maximum size of the log file.
-}
+	"github.com/ahrav/go-distributed/replicate/common"
+)
 
 // WriteAheadLog represents the Write-Ahead Log (WAL) structure.
 type WriteAheadLog struct {
-	mu sync.Mutex // Mutex to ensure thread-safe access to the WAL.
-	// TODO: Implement log cleaner
-	// logCleaner          *TimeBasedLogCleaner
-	openSegment         *Segment   // The currently open segment for writing.
-	sortedSavedSegments []*Segment // A sorted list of saved segments.
-	config              Config     // The configuration settings for the WAL.
+	mu                  sync.Mutex // Mutex to ensure thread-safe access to the WAL.
+	logCleaner          *TimeBasedLogCleaner
+	openSegment         *Segment      // The currently open segment for writing.
+	sortedSavedSegments []*Segment    // A sorted list of saved segments.
+	config              common.Config // The configuration settings for the WAL.
 }
 
 // OpenWAL opens the Write-Ahead Log (WAL) with the given configuration.
 // It returns a pointer to the WriteAheadLog.
-func OpenWAL(config Config) *WriteAheadLog {
-	segments := openAllSegments(config.WalDir)
+func OpenWAL(config common.Config) *WriteAheadLog {
+	segments := openAllSegments(config.GetWalDir())
 	return NewWriteAheadLog(segments, config)
 }
 
@@ -65,18 +60,20 @@ func openAllSegments(walDir string) []*Segment {
 
 // NewWriteAheadLog creates a new WriteAheadLog with the given segments and configuration.
 // It returns a pointer to the WriteAheadLog.
-func NewWriteAheadLog(segments []*Segment, config Config) *WriteAheadLog {
+func NewWriteAheadLog(segments []*Segment, config common.Config) *WriteAheadLog {
 	lastSegment := segments[len(segments)-1]
 	segments = segments[:len(segments)-1]
-	// logCleaner := NewLogCleaner(config)
-	// logCleaner.Startup()
 
-	return &WriteAheadLog{
-		// logCleaner:          logCleaner,
+	wal := &WriteAheadLog{
 		openSegment:         lastSegment,
 		sortedSavedSegments: segments,
 		config:              config,
 	}
+
+	wal.logCleaner = NewTimeBasedLogCleaner(&config, wal)
+	wal.logCleaner.Startup()
+
+	return wal
 }
 
 // WriteEntryData writes the provided data as an entry to the WAL.
@@ -101,11 +98,11 @@ func (wal *WriteAheadLog) WriteEntry(entry *Entry) int64 {
 // If the segment size exceeds the maximum log size, it flushes the current segment and opens a new one.
 func (wal *WriteAheadLog) maybeRoll() {
 	segmentSize, _ := wal.openSegment.Size()
-	if segmentSize >= wal.config.MaxLogSize {
+	if segmentSize >= wal.config.GetMaxLogSize() {
 		wal.openSegment.Flush()
 		wal.sortedSavedSegments = append(wal.sortedSavedSegments, wal.openSegment)
 		lastID, _ := wal.openSegment.GetLastLogEntryIndex()
-		segment, err := Open(lastID, wal.config.WalDir)
+		segment, err := Open(lastID, wal.config.GetWalDir())
 		if err != nil {
 			panic(err)
 		}

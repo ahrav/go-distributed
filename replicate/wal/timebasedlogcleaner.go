@@ -8,14 +8,40 @@ import (
 
 // TimeBasedLogCleaner represents a log cleaner that deletes segments based on time duration.
 type TimeBasedLogCleaner struct {
-	*LogCleaner
+	config               *common.Config
+	wal                  *WriteAheadLog
+	singleThreadedTicker *time.Ticker
 }
 
 // NewTimeBasedLogCleaner returns an instance of TimeBasedLogCleaner.
 func NewTimeBasedLogCleaner(config *common.Config, wal *WriteAheadLog) *TimeBasedLogCleaner {
 	return &TimeBasedLogCleaner{
-		LogCleaner: NewLogCleaner(config, wal),
+		config:               config,
+		wal:                  wal,
+		singleThreadedTicker: time.NewTicker(time.Duration(config.GetCleanTaskIntervalMs()) * time.Millisecond),
 	}
+}
+
+// CleanLogs performs the log cleaning based on the segments to be deleted.
+func (tlc *TimeBasedLogCleaner) CleanLogs() {
+	segmentsToBeDeleted := tlc.GetSegmentsToBeDeleted()
+	for _, walSegment := range segmentsToBeDeleted {
+		tlc.wal.RemoveAndDeleteSegment(walSegment)
+	}
+}
+
+// Startup starts the log cleaning scheduling.
+func (tlc *TimeBasedLogCleaner) Startup() {
+	tlc.scheduleLogCleaning()
+}
+
+// scheduleLogCleaning schedules the log cleaning task to run at intervals specified in the configuration.
+func (tlc *TimeBasedLogCleaner) scheduleLogCleaning() {
+	go func() {
+		for range tlc.singleThreadedTicker.C {
+			tlc.CleanLogs()
+		}
+	}()
 }
 
 // GetSegmentsToBeDeleted returns the segments that should be deleted based on log max duration.
