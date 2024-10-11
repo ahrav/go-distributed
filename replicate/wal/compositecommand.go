@@ -60,12 +60,12 @@ func Deserialize(reader io.Reader) (Command, error) {
 
 	switch commandType {
 	case SetValueType:
-		// cmd, err := DeserializeSetValueCommand(reader)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// cmd.WithClientId(clientId).WithRequestNumber(int(requestNumber))
-		// return cmd, nil
+		cmd, err := DeserializeSetValueCommand(reader)
+		if err != nil {
+			return nil, err
+		}
+		cmd.WithClientId(clientId).WithRequestNumber(int(requestNumber))
+		return cmd, nil
 	case CompositeCommandType:
 		cc, err := DeserializeCompositeCommand(reader)
 		if err != nil {
@@ -74,6 +74,7 @@ func Deserialize(reader io.Reader) (Command, error) {
 		cc.WithClientId(clientId).WithRequestNumber(int(requestNumber))
 		return cc, nil
 	case CasCommandType:
+		// TODO: Implement DeserializeCompareAndSwap function after covering two phase execution.
 		// cmd, err := DeserializeCompareAndSwap(reader)
 		// if err != nil {
 		// 	return nil, err
