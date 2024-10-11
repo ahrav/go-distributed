@@ -96,7 +96,7 @@ func DeserializeCompositeCommand(reader io.Reader) (*CompositeCommand, error) {
 		return nil, err
 	}
 	cc := &CompositeCommand{}
-	for i := range numCommands {
+	for range numCommands {
 		var size int32
 		if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
 			return nil, err
