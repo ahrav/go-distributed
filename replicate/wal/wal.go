@@ -76,6 +76,11 @@ func NewWriteAheadLog(segments []*Segment, config common.Config) *WriteAheadLog 
 	return wal
 }
 
+// WriteEntryBytes writes the provided data as an entry to the WAL.
+// It uses 0 as the generation number.
+// It returns the offset of the written entry.
+func (wal *WriteAheadLog) WriteEntryBytes(data []byte) int64 { return wal.WriteEntryData(data, 0) }
+
 // WriteEntryData writes the provided data as an entry to the WAL.
 // It returns the offset of the written entry.
 func (wal *WriteAheadLog) WriteEntryData(data []byte, generation int64) int64 {

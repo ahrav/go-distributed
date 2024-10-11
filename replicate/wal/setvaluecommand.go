@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 )
@@ -8,20 +9,20 @@ import (
 // SetValueCommand represents a command to set a value with an optional lease.
 type SetValueCommand struct {
 	BaseCommand
-	key         string // The key to set.
-	value       string // The value to set.
-	attachLease string // The optional lease to attach.
+	Key         string // The Key to set.
+	Value       string // The Value to set.
+	AttachLease string // The optional lease to attach.
 }
 
 // NewSetValueCommand creates a new SetValueCommand with the specified key and value.
 // The attachLease is set to an empty string.
 func NewSetValueCommand(key, value string) *SetValueCommand {
-	return &SetValueCommand{key: key, value: value, attachLease: ""}
+	return &SetValueCommand{Key: key, Value: value, AttachLease: ""}
 }
 
 // NewSetValueCommandWithLease creates a new SetValueCommand with the specified key, value, and attachLease.
 func NewSetValueCommandWithLease(key, value, attachLease string) *SetValueCommand {
-	return &SetValueCommand{key: key, value: value, attachLease: attachLease}
+	return &SetValueCommand{Key: key, Value: value, AttachLease: attachLease}
 }
 
 // Serialize writes the SetValueCommand to the provided writer.
@@ -31,16 +32,34 @@ func (svc *SetValueCommand) Serialize(writer io.Writer) error {
 	if err := binary.Write(writer, binary.BigEndian, int32(SetValueType)); err != nil {
 		return err
 	}
-	if err := writeString(writer, svc.key); err != nil {
+	if err := writeString(writer, svc.Key); err != nil {
 		return err
 	}
-	if err := writeString(writer, svc.value); err != nil {
+	if err := writeString(writer, svc.Value); err != nil {
 		return err
 	}
-	if err := writeString(writer, svc.attachLease); err != nil {
+	if err := writeString(writer, svc.AttachLease); err != nil {
 		return err
 	}
 	return nil
+}
+
+// SerializeToBytes serializes the SetValueCommand into a byte slice
+func (svc *SetValueCommand) SerializeToBytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, int32(SetValueType)); err != nil {
+		return nil, err
+	}
+	if err := writeString(buf, svc.Key); err != nil {
+		return nil, err
+	}
+	if err := writeString(buf, svc.Value); err != nil {
+		return nil, err
+	}
+	if err := writeString(buf, svc.AttachLease); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // DeserializeSetValueCommand reads a SetValueCommand from the provided reader.
@@ -59,34 +78,34 @@ func DeserializeSetValueCommand(reader io.Reader) (*SetValueCommand, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SetValueCommand{key: key, value: value, attachLease: attachLease}, nil
+	return &SetValueCommand{Key: key, Value: value, AttachLease: attachLease}, nil
 }
 
 // GetKey returns the key of the SetValueCommand.
 func (svc *SetValueCommand) GetKey() string {
-	return svc.key
+	return svc.Key
 }
 
 // GetValue returns the value of the SetValueCommand.
 func (svc *SetValueCommand) GetValue() string {
-	return svc.value
+	return svc.Value
 }
 
 // HasLease checks if the SetValueCommand has an attached lease.
 // Returns true if attachLease is not an empty string.
 func (svc *SetValueCommand) HasLease() bool {
-	return svc.attachLease != ""
+	return svc.AttachLease != ""
 }
 
 // GetAttachedLease returns the attached lease of the SetValueCommand.
 func (svc *SetValueCommand) GetAttachedLease() string {
-	return svc.attachLease
+	return svc.AttachLease
 }
 
 // IsEmpty checks if the SetValueCommand is empty.
 // Returns true if both key and value are empty strings.
 func (svc *SetValueCommand) IsEmpty() bool {
-	return svc.key == "" && svc.value == ""
+	return svc.Key == "" && svc.Value == ""
 }
 
 // writeString writes a string to the provided writer.

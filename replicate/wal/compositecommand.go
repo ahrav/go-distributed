@@ -41,6 +41,33 @@ func (cc *CompositeCommand) Serialize(writer io.Writer) error {
 // Add appends a sub-command to the CompositeCommand.
 func (cc *CompositeCommand) Add(command Command) { cc.commands = append(cc.commands, command) }
 
+// DeserializeCompositeCommand reads a CompositeCommand from the provided reader.
+// It deserializes the number of sub-commands and each sub-command.
+// Returns the deserialized CompositeCommand and an error if any deserialization step fails.
+func DeserializeCompositeCommand(reader io.Reader) (*CompositeCommand, error) {
+	var numCommands int32
+	if err := binary.Read(reader, binary.BigEndian, &numCommands); err != nil {
+		return nil, err
+	}
+	cc := &CompositeCommand{}
+	for range numCommands {
+		var size int32
+		if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
+			return nil, err
+		}
+		data := make([]byte, size)
+		if _, err := io.ReadFull(reader, data); err != nil {
+			return nil, err
+		}
+		command, err := Deserialize(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		cc.Add(command)
+	}
+	return cc, nil
+}
+
 // Deserialize reads a Command from the provided reader.
 // It determines the command type and deserializes the appropriate command.
 // Returns the deserialized Command and an error if any deserialization step fails.
@@ -86,31 +113,4 @@ func Deserialize(reader io.Reader) (Command, error) {
 	}
 
 	return nil, nil
-}
-
-// DeserializeCompositeCommand reads a CompositeCommand from the provided reader.
-// It deserializes the number of sub-commands and each sub-command.
-// Returns the deserialized CompositeCommand and an error if any deserialization step fails.
-func DeserializeCompositeCommand(reader io.Reader) (*CompositeCommand, error) {
-	var numCommands int32
-	if err := binary.Read(reader, binary.BigEndian, &numCommands); err != nil {
-		return nil, err
-	}
-	cc := &CompositeCommand{}
-	for range numCommands {
-		var size int32
-		if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
-			return nil, err
-		}
-		data := make([]byte, size)
-		if _, err := io.ReadFull(reader, data); err != nil {
-			return nil, err
-		}
-		command, err := Deserialize(bytes.NewReader(data))
-		if err != nil {
-			return nil, err
-		}
-		cc.Add(command)
-	}
-	return cc, nil
 }
