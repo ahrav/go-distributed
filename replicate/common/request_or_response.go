@@ -3,18 +3,16 @@ package common
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/ahrav/go-distributed/replicate/netpkg"
 )
 
 // RequestOrResponse represents a request or response message.
 type RequestOrResponse struct {
-	RequestID       *int                       `json:"requestId,omitempty"`
-	MessageBodyJSON []byte                     `json:"messageBodyJson"`
-	CorrelationID   *int                       `json:"correlationId,omitempty"`
-	Generation      int                        `json:"generation"`
-	FromAddress     *netpkg.InetAddressAndPort `json:"fromAddress,omitempty"`
-	IsErr           bool                       `json:"isError"`
+	RequestID       *int                `json:"requestId,omitempty"`
+	MessageBodyJSON []byte              `json:"messageBodyJson"`
+	CorrelationID   *int                `json:"correlationId,omitempty"`
+	Generation      int                 `json:"generation"`
+	FromAddress     *InetAddressAndPort `json:"fromAddress,omitempty"`
+	IsErr           bool                `json:"isError"`
 }
 
 // NewRequestOrResponse creates a new RequestOrResponse with all fields specified.
@@ -23,7 +21,7 @@ func NewRequestOrResponse(
 	requestID *int,
 	messageBodyJSON []byte,
 	correlationID *int,
-	fromAddress *netpkg.InetAddressAndPort,
+	fromAddress *InetAddressAndPort,
 ) *RequestOrResponse {
 	return &RequestOrResponse{
 		Generation:      generation,
@@ -67,7 +65,7 @@ func NewRequestOrResponseWithAddress(
 	requestID *int,
 	messageBodyJSON []byte,
 	correlationID *int,
-	fromAddress *netpkg.InetAddressAndPort,
+	fromAddress *InetAddressAndPort,
 ) *RequestOrResponse {
 	return NewRequestOrResponse(-1, requestID, messageBodyJSON, correlationID, fromAddress)
 }
@@ -91,7 +89,7 @@ func (ror *RequestOrResponse) GetCorrelationID() *int { return ror.CorrelationID
 func (ror *RequestOrResponse) GetGeneration() int { return ror.Generation }
 
 // GetFromAddress returns the fromAddress.
-func (ror *RequestOrResponse) GetFromAddress() *netpkg.InetAddressAndPort {
+func (ror *RequestOrResponse) GetFromAddress() *InetAddressAndPort {
 	return ror.FromAddress
 }
 

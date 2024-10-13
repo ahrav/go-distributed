@@ -1,4 +1,4 @@
-package netpkg
+package common
 
 import (
 	"bytes"
