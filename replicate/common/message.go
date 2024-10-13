@@ -55,9 +55,6 @@ type Header struct {
 	MessageId     MessageId           `json:"messageId"`
 }
 
-// MessageId represents a unique identifier for a message.
-type MessageId int
-
 // String implements the fmt.Stringer interface for Header.
 func (h Header) String() string {
 	return fmt.Sprintf("Header{FromAddress: %v, CorrelationId: %d, MessageId: %d}", h.FromAddress, h.CorrelationId, h.MessageId)
