@@ -229,8 +229,8 @@ func (n *Network) removeExistingConnection(key string) {
 }
 
 // DropMessagesTo configures the network to drop all messages to the specified address.
-func (n *Network) DropMessagesTo(address common.InetAddressAndPort) {
-	key := n.addrKey(address)
+func (n *Network) DropMessagesTo(address *common.InetAddressAndPort) {
+	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -240,8 +240,8 @@ func (n *Network) DropMessagesTo(address common.InetAddressAndPort) {
 
 // ReconnectTo removes the drop and delay configurations for the specified address,
 // allowing normal message sending.
-func (n *Network) ReconnectTo(address common.InetAddressAndPort) {
-	key := n.addrKey(address)
+func (n *Network) ReconnectTo(address *common.InetAddressAndPort) {
+	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -254,8 +254,8 @@ func (n *Network) ReconnectTo(address common.InetAddressAndPort) {
 }
 
 // DropMessagesAfter configures the network to drop messages to the specified address after a certain number.
-func (n *Network) DropMessagesAfter(address common.InetAddressAndPort, dropAfterNoOfMessages int) {
-	key := n.addrKey(address)
+func (n *Network) DropMessagesAfter(address *common.InetAddressAndPort, dropAfterNoOfMessages int) {
+	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -265,8 +265,8 @@ func (n *Network) DropMessagesAfter(address common.InetAddressAndPort, dropAfter
 }
 
 // AddDelayForMessagesToAfterNMessages configures the network to delay messages to the address after N messages.
-func (n *Network) AddDelayForMessagesToAfterNMessages(address common.InetAddressAndPort, noOfMessages int) {
-	key := n.addrKey(address)
+func (n *Network) AddDelayForMessagesToAfterNMessages(address *common.InetAddressAndPort, noOfMessages int) {
+	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -275,8 +275,8 @@ func (n *Network) AddDelayForMessagesToAfterNMessages(address common.InetAddress
 }
 
 // AddDelayForMessagesOfType configures the network to delay messages of a specific type to the address.
-func (n *Network) AddDelayForMessagesOfType(address common.InetAddressAndPort, messageId common.MessageId) {
-	key := n.addrKey(address)
+func (n *Network) AddDelayForMessagesOfType(address *common.InetAddressAndPort, messageId common.MessageId) {
+	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
