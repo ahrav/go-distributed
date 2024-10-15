@@ -56,7 +56,7 @@ func (rwl *RequestWaitingList[Key, Response]) expirationWorker() {
 }
 
 // Add registers a new request with the given key and callback.
-func (rwl *RequestWaitingList[Key, Response]) Add(key Key, callback RequestCallback[Response]) {
+func (rwl *RequestWaitingList[Key, Response]) Add(key Key, callback common.RequestCallback[Response]) {
 	now := rwl.clock.NanoTime()
 	rwl.logger.Printf("RequestWaitingList adding key %v at %d", key, now)
 

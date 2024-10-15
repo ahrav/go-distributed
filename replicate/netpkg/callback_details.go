@@ -1,15 +1,19 @@
 package netpkg
 
-import "time"
+import (
+	"time"
+
+	"github.com/ahrav/go-distributed/replicate/common"
+)
 
 // CallbackDetails holds the callback and the timestamp when the request was added.
 type CallbackDetails[Response any] struct {
-	RequestCallback RequestCallback[Response]
+	RequestCallback common.RequestCallback[Response]
 	CreateTimeNanos int64 // NanoTime when the request was added
 }
 
 // NewCallbackDetails creates a new CallbackDetails instance.
-func NewCallbackDetails[Response any](callback RequestCallback[Response], createTimeNanos int64) *CallbackDetails[Response] {
+func NewCallbackDetails[Response any](callback common.RequestCallback[Response], createTimeNanos int64) *CallbackDetails[Response] {
 	return &CallbackDetails[Response]{RequestCallback: callback, CreateTimeNanos: createTimeNanos}
 }
 
