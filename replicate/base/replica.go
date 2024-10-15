@@ -42,7 +42,7 @@ type Replica struct {
 	wg        sync.WaitGroup
 	taskQueue chan func()
 
-	handlers map[common.MessageId]*MessageHandler
+	handlers map[common.MessageID]*MessageHandler
 
 	heartBeatScheduler *heartbeat.Scheduler
 	heartbeatChecker   *heartbeat.Scheduler
@@ -107,7 +107,7 @@ func NewReplica(
 		peerAddresses:           peerAddrs,
 		clientConnectionAddress: clientConnAddr,
 		peerConnectionAddress:   peerConnAddr,
-		handlers:                make(map[common.MessageId]*MessageHandler),
+		handlers:                make(map[common.MessageID]*MessageHandler),
 		logger:                  logger,
 		heartBeatInterval:       100 * time.Millisecond,
 		heartbeatTimeout:        500 * time.Millisecond, // 5 * heartBeatInterval
@@ -302,7 +302,7 @@ func (r *Replica) AddClockSkew(duration time.Duration) { r.clock.AddClockSkew(du
 func (r *Replica) SetClock(clock *common.SystemClock) { r.clock = clock }
 
 // handlesMessage registers a handler for one-way message passing communication.
-func (r *Replica) handlesMessage(messageID common.MessageId, handler func(common.Message[any]), requestClass any) {
+func (r *Replica) handlesMessage(messageID common.MessageID, handler func(common.Message[any]), requestClass any) {
 	r.handlers[messageID] = &MessageHandler{
 		RequestClass: requestClass,
 		Handler: func(msg common.Message[any]) any {
@@ -314,7 +314,7 @@ func (r *Replica) handlesMessage(messageID common.MessageId, handler func(common
 
 // handlesRequestAsync registers an asynchronous request handler that expects a response.
 func (r *Replica) handlesRequestAsync(
-	messageID common.MessageId,
+	messageID common.MessageID,
 	handler func(common.Message[any]) (any, error),
 	requestClass any,
 ) {
@@ -386,7 +386,7 @@ func (r *Replica) addDelayForMessagesToAfterNMessages(n *Replica, noOfMessages i
 }
 
 // addDelayForMessagesOfType adds a delay for messages of a specific type to the replica.
-func (r *Replica) addDelayForMessagesOfType(n *Replica, messageID common.MessageId) {
+func (r *Replica) addDelayForMessagesOfType(n *Replica, messageID common.MessageID) {
 	r.network.AddDelayForMessagesOfType(n.getPeerConnectionAddress(), messageID)
 }
 

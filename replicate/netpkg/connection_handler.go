@@ -97,7 +97,7 @@ func (ch *ConnectionHandler) readLoop() {
 			header := common.Header{
 				FromAddress:   req.GetFromAddress(),
 				CorrelationId: *req.GetCorrelationID(),
-				MessageId:     common.MessageId(*req.GetRequestID()),
+				MessageId:     common.MessageID(*req.GetRequestID()),
 			}
 
 			message := common.NewMessageWithClient(req, header, ch)

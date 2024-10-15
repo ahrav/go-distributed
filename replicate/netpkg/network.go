@@ -24,7 +24,7 @@ type Network struct {
 	noOfMessages       map[string]int
 	dropAfter          map[string]int
 	delayMessagesAfter map[string]int
-	delayMessageTypes  map[string]map[common.MessageId]struct{}
+	delayMessageTypes  map[string]map[common.MessageID]struct{}
 
 	// Connection pool.
 	connectionPool map[string]*SocketClient[common.RequestOrResponse]
@@ -39,7 +39,7 @@ func NewNetwork(logger *log.Logger) *Network {
 		noOfMessages:       make(map[string]int),
 		dropAfter:          make(map[string]int),
 		delayMessagesAfter: make(map[string]int),
-		delayMessageTypes:  make(map[string]map[common.MessageId]struct{}),
+		delayMessageTypes:  make(map[string]map[common.MessageID]struct{}),
 		connectionPool:     make(map[string]*SocketClient[common.RequestOrResponse]),
 	}
 }
@@ -90,13 +90,13 @@ func (n *Network) noOfMessagesReachedLimit(key string) bool {
 	return exists && noOfMsgs >= dropAfter
 }
 
-// shouldDelayMessagesOfType checks if messages of the specified MessageId should be delayed for the address.
+// shouldDelayMessagesOfType checks if messages of the specified MessageID should be delayed for the address.
 func (n *Network) shouldDelayMessagesOfType(key string, messageId int) bool {
 	ids, exists := n.delayMessageTypes[key]
 	if !exists {
 		return false
 	}
-	msgId := common.MessageId(messageId)
+	msgId := common.MessageID(messageId)
 	_, exists = ids[msgId]
 	return exists
 }
@@ -275,14 +275,14 @@ func (n *Network) AddDelayForMessagesToAfterNMessages(address *common.InetAddres
 }
 
 // AddDelayForMessagesOfType configures the network to delay messages of a specific type to the address.
-func (n *Network) AddDelayForMessagesOfType(address *common.InetAddressAndPort, messageId common.MessageId) {
+func (n *Network) AddDelayForMessagesOfType(address *common.InetAddressAndPort, messageId common.MessageID) {
 	key := n.addrKey(*address)
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
 	if _, exists := n.delayMessageTypes[key]; !exists {
-		n.delayMessageTypes[key] = make(map[common.MessageId]struct{})
+		n.delayMessageTypes[key] = make(map[common.MessageID]struct{})
 	}
 	n.delayMessageTypes[key][messageId] = struct{}{}
 }
