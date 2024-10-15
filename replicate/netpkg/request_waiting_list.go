@@ -10,9 +10,9 @@ import (
 )
 
 // RequestWaitingList manages pending requests and handles their callbacks.
-type RequestWaitingList[Key comparable, Response any] struct {
+type RequestWaitingList[Key comparable, T any] struct {
 	mu                 sync.RWMutex
-	pendingRequests    map[Key]*CallbackDetails[Response]
+	pendingRequests    map[Key]*CallbackDetails[T]
 	clock              *common.SystemClock
 	expirationDuration time.Duration
 	executor           *time.Ticker
@@ -43,7 +43,7 @@ func NewRequestWaitingList[Key comparable, Response any](
 }
 
 // expirationWorker runs in a goroutine and periodically checks for expired requests.
-func (rwl *RequestWaitingList[Key, Response]) expirationWorker() {
+func (rwl *RequestWaitingList[Key, T]) expirationWorker() {
 	for {
 		select {
 		case <-rwl.executor.C:
@@ -56,7 +56,7 @@ func (rwl *RequestWaitingList[Key, Response]) expirationWorker() {
 }
 
 // Add registers a new request with the given key and callback.
-func (rwl *RequestWaitingList[Key, Response]) Add(key Key, callback common.RequestCallback[Response]) {
+func (rwl *RequestWaitingList[Key, T]) Add(key Key, callback common.RequestCallback[T]) {
 	now := rwl.clock.NanoTime()
 	rwl.logger.Printf("RequestWaitingList adding key %v at %d", key, now)
 
@@ -67,7 +67,7 @@ func (rwl *RequestWaitingList[Key, Response]) Add(key Key, callback common.Reque
 }
 
 // expire checks for expired requests and invokes their error callbacks.
-func (rwl *RequestWaitingList[Key, Response]) expire() {
+func (rwl *RequestWaitingList[Key, T]) expire() {
 	expiredKeys := rwl.getExpiredRequestKeys()
 	if len(expiredKeys) == 0 {
 		return
@@ -90,7 +90,7 @@ func (rwl *RequestWaitingList[Key, Response]) expire() {
 }
 
 // getExpiredRequestKeys retrieves the keys of all expired requests.
-func (rwl *RequestWaitingList[Key, Response]) getExpiredRequestKeys() []Key {
+func (rwl *RequestWaitingList[Key, T]) getExpiredRequestKeys() []Key {
 	now := rwl.clock.NanoTime()
 	var expired []Key
 
@@ -107,7 +107,7 @@ func (rwl *RequestWaitingList[Key, Response]) getExpiredRequestKeys() []Key {
 }
 
 // HandleResponse processes a received response for the given key.
-func (rwl *RequestWaitingList[Key, Response]) HandleResponse(key Key, response Response) {
+func (rwl *RequestWaitingList[Key, T]) HandleResponse(key Key, response T) {
 	rwl.logger.Printf("RequestWaitingList received response for key %v at %d", key, rwl.clock.NanoTime())
 
 	rwl.mu.Lock()
@@ -123,7 +123,7 @@ func (rwl *RequestWaitingList[Key, Response]) HandleResponse(key Key, response R
 }
 
 // HandleResponseFromNode processes a received response for the given key from a specific node.
-func (rwl *RequestWaitingList[Key, Response]) HandleResponseFromNode(key Key, response Response, fromNode *common.InetAddressAndPort) {
+func (rwl *RequestWaitingList[Key, T]) HandleResponseFromNode(key Key, response T, fromNode *common.InetAddressAndPort) {
 	rwl.logger.Printf("RequestWaitingList received response for key %v at %d from node %v", key, rwl.clock.NanoTime(), fromNode)
 
 	rwl.mu.Lock()
@@ -140,7 +140,7 @@ func (rwl *RequestWaitingList[Key, Response]) HandleResponseFromNode(key Key, re
 }
 
 // HandleError processes an error for the given request ID.
-func (rwl *RequestWaitingList[Key, Response]) HandleError(key Key, err error) {
+func (rwl *RequestWaitingList[Key, T]) HandleError(key Key, err error) {
 	rwl.logger.Printf("RequestWaitingList handling error for key %v: %v", key, err)
 
 	rwl.mu.Lock()
@@ -156,4 +156,4 @@ func (rwl *RequestWaitingList[Key, Response]) HandleError(key Key, err error) {
 }
 
 // Close stops the expiration worker and cleans up resources.
-func (rwl *RequestWaitingList[Key, Response]) Close() { close(rwl.stopChan) }
+func (rwl *RequestWaitingList[Key, T]) Close() { close(rwl.stopChan) }

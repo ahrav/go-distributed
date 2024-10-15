@@ -2,6 +2,7 @@ package base
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/rand/v2"
 	"sync"
@@ -113,6 +114,7 @@ func NewReplica(
 		heartbeatTimeout:        500 * time.Millisecond, // 5 * heartBeatInterval
 		initializer:             initializer,
 		heartbeatHandler:        heartbeatHandler,
+		taskQueue:               make(chan func(), 1000),
 	}
 
 	// Start the single-threaded task executor.
@@ -189,6 +191,110 @@ func (r *Replica) enqueueTask(task func()) { r.taskQueue <- task }
 func (r *Replica) Start() {
 	r.peerListener.Start()
 	r.clientListener.Start()
+}
+
+// sendOneway sends a one-way message to the specified address without expecting a response.
+func (r *Replica) sendOneway(address *common.InetAddressAndPort, request any, correlationId int) {
+	payload, err := serialize(request)
+	if err != nil {
+		r.logger.Printf("Serialization error for one-way message: %v", err)
+		return
+	}
+
+	reqResp := common.RequestOrResponse{
+		RequestID:       nil, // One-way messages might not need a RequestID
+		MessageBodyJSON: payload,
+		CorrelationID:   &correlationId,
+		IsErr:           false,
+	}
+
+	err = r.network.SendOneWay(*address, reqResp)
+	if err != nil {
+		r.logger.Printf("Communication failure sending one-way request to %v from %s: %v", address, r.getName(), err)
+	}
+}
+
+// sendMessageToReplicas sends a message to all peer replicas and expects responses.
+// It registers a callback for each response.
+func (r *Replica) sendMessageToReplicas(
+	callback common.RequestCallback[common.RequestOrResponse],
+	messageId common.MessageID,
+	requestToReplicas any,
+) {
+	for _, replica := range r.peerAddresses {
+		correlationId := r.newCorrelationID()
+		reqResp := common.RequestOrResponse{
+			RequestID:       nil, // Depending on your protocol, set if needed
+			MessageBodyJSON: serializeOrPanic(requestToReplicas),
+			CorrelationID:   &correlationId,
+			IsErr:           false,
+		}
+		r.SendMessageToReplica(callback, replica, reqResp)
+	}
+}
+
+// SendMessageToReplica sends a message to a specific replica and registers a callback for the response.
+// It handles communication failures by invoking the callback's error handler.
+func (r *Replica) SendMessageToReplica(
+	callback common.RequestCallback[common.RequestOrResponse],
+	replicaAddress *common.InetAddressAndPort,
+	request common.RequestOrResponse,
+) {
+	r.logger.Printf(
+		"%s Sending MessageID: %d to %v with CorrelationID: %d",
+		r.getName(),
+		request.GetRequestID(),
+		replicaAddress,
+		request.GetCorrelationID(),
+	)
+
+	// Register the callback in the RequestWaitingList
+	r.requestWaitingList.Add(*request.GetCorrelationID(), callback)
+
+	// Attempt to send the message
+	err := r.network.SendOneWay(*replicaAddress, request)
+	if err != nil {
+		r.logger.Printf("Communication failure sending request to %v from %s: %v", replicaAddress, r.getName(), err)
+		// Immediately report the error to the callback
+		r.requestWaitingList.HandleError(*request.GetCorrelationID(), err)
+	}
+}
+
+// sendOnewayMessageToReplicas sends a one-way message to all peer replicas without expecting responses.
+func (r *Replica) sendOnewayMessageToReplicas(requestToReplicas any) {
+	for _, replica := range r.peerAddresses {
+		correlationId := r.newCorrelationID()
+		r.sendOneway(replica, requestToReplicas, correlationId)
+	}
+}
+
+// sendOnewayMessageToOtherReplicas sends a one-way message to all peer replicas except the current one.
+func (r *Replica) sendOnewayMessageToOtherReplicas(requestToReplicas any) {
+	for _, replica := range r.otherReplicas() {
+		correlationId := r.newCorrelationID()
+		r.sendOneway(replica, requestToReplicas, correlationId)
+	}
+}
+
+// otherReplicas returns a list of replicas excluding the current one.
+func (r *Replica) otherReplicas() []*common.InetAddressAndPort {
+	var others []*common.InetAddressAndPort
+	for _, replica := range r.peerAddresses {
+		if !replica.Equals(r.peerConnectionAddress) {
+			others = append(others, replica)
+		}
+	}
+	return others
+}
+
+// Helper function for serialization that panics on failure.
+// Use with caution; alternatively, handle errors gracefully as needed.
+func serializeOrPanic(e any) []byte {
+	b, err := serialize(e)
+	if err != nil {
+		panic(fmt.Sprintf("Serialization failed: %v", err))
+	}
+	return b
 }
 
 // handlePeerMessage processes incoming messages from peer replicas.
@@ -351,7 +457,7 @@ func (r *Replica) getClientConnectionAddress() *common.InetAddressAndPort {
 }
 
 // getPeerConnectionAddress returns the peer's connection address.
-func (r *Replica) getPeerConnectionAddress() *common.InetAddressAndPort {
+func (r *Replica) GetPeerConnectionAddress() *common.InetAddressAndPort {
 	return r.peerConnectionAddress
 }
 
@@ -362,17 +468,17 @@ func (r *Replica) deserialize(request common.RequestOrResponse, clazz any) error
 
 // dropMessagesTo drops all messages to the specified replica.
 func (r *Replica) dropMessagesTo(n *Replica) {
-	r.network.DropMessagesTo(n.getPeerConnectionAddress())
+	r.network.DropMessagesTo(n.GetPeerConnectionAddress())
 }
 
 // reconnectTo reconnects to the specified replica.
 func (r *Replica) reconnectTo(n *Replica) {
-	r.network.ReconnectTo(n.getPeerConnectionAddress())
+	r.network.ReconnectTo(n.GetPeerConnectionAddress())
 }
 
 // dropAfterNMessagesTo drops messages after a specified number of messages to the replica.
 func (r *Replica) dropAfterNMessagesTo(n *Replica, dropAfterNoOfMessages int) {
-	r.network.DropMessagesAfter(n.getPeerConnectionAddress(), dropAfterNoOfMessages)
+	r.network.DropMessagesAfter(n.GetPeerConnectionAddress(), dropAfterNoOfMessages)
 }
 
 // addDelayForMessagesTo adds a delay for messages to the specified replica.
@@ -382,12 +488,12 @@ func (r *Replica) addDelayForMessagesTo(rpl *Replica) {
 
 // addDelayForMessagesToAfterNMessages adds a delay after a certain number of messages to the replica.
 func (r *Replica) addDelayForMessagesToAfterNMessages(n *Replica, noOfMessages int) {
-	r.network.AddDelayForMessagesToAfterNMessages(n.getPeerConnectionAddress(), noOfMessages)
+	r.network.AddDelayForMessagesToAfterNMessages(n.GetPeerConnectionAddress(), noOfMessages)
 }
 
 // addDelayForMessagesOfType adds a delay for messages of a specific type to the replica.
 func (r *Replica) addDelayForMessagesOfType(n *Replica, messageID common.MessageID) {
-	r.network.AddDelayForMessagesOfType(n.getPeerConnectionAddress(), messageID)
+	r.network.AddDelayForMessagesOfType(n.GetPeerConnectionAddress(), messageID)
 }
 
 // quorum calculates and returns the quorum size based on the number of replicas.

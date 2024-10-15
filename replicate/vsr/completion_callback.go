@@ -6,20 +6,6 @@ import (
 	"github.com/ahrav/go-distributed/replicate/common"
 )
 
-// QuorumResult represents the outcome of an asynchronous operation.
-// It encapsulates either a successful response of type T or an error if the operation failed.
-// This struct is used to convey the result through channels, allowing consumers to handle
-// the response or error accordingly.
-type QuorumResult[T any] struct {
-	// Value holds the successful result of the operation.
-	// It is zero-valued if an error occurred.
-	Value T
-
-	// Err holds the error encountered during the operation.
-	// It is nil if the operation was successful.
-	Err error
-}
-
 // CompletionCallback bridges callback-based asynchronous responses to channels.
 // It implements the RequestCallback[T] interface, allowing it to receive responses
 // or errors from asynchronous operations and forward them through a channel.
@@ -35,7 +21,7 @@ type CompletionCallback[T any] struct {
 	// result is a buffered channel that carries the QuorumResult[T].
 	// It is buffered with a capacity of 1 to allow the sender to proceed
 	// without blocking if the receiver isn't immediately ready.
-	result chan QuorumResult[T]
+	result chan common.CompletionResult[T]
 }
 
 // NewCompletionCallback initializes a new CompletionCallback.
@@ -43,7 +29,7 @@ type CompletionCallback[T any] struct {
 // to send the result without being blocked.
 func NewCompletionCallback[T any]() *CompletionCallback[T] {
 	return &CompletionCallback[T]{
-		result: make(chan QuorumResult[T], 1), // Buffered to prevent goroutine leaks
+		result: make(chan common.CompletionResult[T], 1), // Buffered to prevent goroutine leaks
 	}
 }
 
@@ -53,7 +39,7 @@ func NewCompletionCallback[T any]() *CompletionCallback[T] {
 // the result is sent only once, even if OnResponse is called multiple times.
 func (cc *CompletionCallback[T]) OnResponse(response T, fromNode *common.InetAddressAndPort) {
 	cc.once.Do(func() {
-		cc.result <- QuorumResult[T]{Value: response, Err: nil}
+		cc.result <- common.CompletionResult[T]{Value: response, Err: nil}
 		close(cc.result)
 	})
 }
@@ -65,7 +51,7 @@ func (cc *CompletionCallback[T]) OnResponse(response T, fromNode *common.InetAdd
 func (cc *CompletionCallback[T]) OnError(err error) {
 	cc.once.Do(func() {
 		var zero T // Initialize T to its zero value
-		cc.result <- QuorumResult[T]{Value: zero, Err: err}
+		cc.result <- common.CompletionResult[T]{Value: zero, Err: err}
 		close(cc.result)
 	})
 }
@@ -73,6 +59,6 @@ func (cc *CompletionCallback[T]) OnError(err error) {
 // GetFuture returns a read-only channel that will receive the QuorumResult[T].
 // Consumers can receive from this channel to obtain the result or handle errors.
 // This method allows integration with Go's select statements and other concurrency patterns.
-func (cc *CompletionCallback[T]) GetFuture() <-chan QuorumResult[T] {
+func (cc *CompletionCallback[T]) GetFuture() <-chan common.CompletionResult[T] {
 	return cc.result
 }
