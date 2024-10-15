@@ -1,7 +1,8 @@
-package quorum
+package messages
 
 import (
 	"github.com/ahrav/go-distributed/replicate/common"
+	"github.com/ahrav/go-distributed/replicate/quorum"
 )
 
 // GetValueRequest represents a request to get the value associated with a key.
@@ -21,11 +22,11 @@ func NewGetValueRequest(key string) *GetValueRequest {
 // GetValueResponse represents the response containing the requested value.
 type GetValueResponse struct {
 	common.MessagePayload
-	Value StoredValue `json:"value"`
+	Value quorum.StoredValue `json:"value"`
 }
 
 // NewGetValueResponse creates a new GetValueResponse with the specified value.
-func NewGetValueResponse(value StoredValue) *GetValueResponse {
+func NewGetValueResponse(value quorum.StoredValue) *GetValueResponse {
 	return &GetValueResponse{
 		MessagePayload: common.NewMessagePayload(common.GetValueResponse),
 		Value:          value,
