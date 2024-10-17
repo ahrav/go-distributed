@@ -32,12 +32,12 @@ type Replica struct {
 	config                  common.Config
 	peerListener            *netpkg.SocketListener
 	clientListener          *netpkg.SocketListener
-	clientConnectionAddress *common.InetAddressAndPort
-	peerConnectionAddress   *common.InetAddressAndPort
+	clientConnectionAddress *common.InetAddressAndPort // Address this replica listens on for client connections
+	peerConnectionAddress   *common.InetAddressAndPort // Address this replica listens on for peer connections
 	network                 *netpkg.Network
 	requestWaitingList      *netpkg.RequestWaitingList[int, any]
 	clock                   *common.SystemClock
-	peerAddresses           []*common.InetAddressAndPort
+	peerAddresses           []*common.InetAddressAndPort // Addresses of peer replicas
 
 	// Single-threaded task executor using a channel and a dedicated goroutine.
 	wg        sync.WaitGroup
