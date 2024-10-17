@@ -14,7 +14,7 @@ type DurableKVStore struct {
 }
 
 // NewDurableKVStore initializes a new instance of DurableKVStore
-func NewDurableKVStore(config common.Config) *DurableKVStore {
+func NewDurableKVStore(config *common.Config) *DurableKVStore {
 	wal := OpenWAL(config)
 	store := &DurableKVStore{
 		kv:  make(map[string]string),

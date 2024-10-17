@@ -3,10 +3,12 @@ package common
 import (
 	"fmt"
 	"sync"
+
+	"github.com/ahrav/go-distributed/replicate/quorum/messages"
 )
 
 // Compile-time check to ensure that AsyncQuorumCallback implements RequestCallback.
-var _ RequestCallback[QuorumResult[any]] = (*AsyncQuorumCallback[QuorumResult[any]])(nil)
+var _ RequestCallback[messages.GetValueResponse] = (*AsyncQuorumCallback[messages.GetValueResponse])(nil)
 
 // QuorumResult represents the result of the quorum operation.
 type QuorumResult[T any] struct {

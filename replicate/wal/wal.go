@@ -12,14 +12,14 @@ import (
 type WriteAheadLog struct {
 	mu                  sync.Mutex // Mutex to ensure thread-safe access to the WAL.
 	logCleaner          *TimeBasedLogCleaner
-	openSegment         *Segment      // The currently open segment for writing.
-	sortedSavedSegments []*Segment    // A sorted list of saved segments.
-	config              common.Config // The configuration settings for the WAL.
+	openSegment         *Segment       // The currently open segment for writing.
+	sortedSavedSegments []*Segment     // A sorted list of saved segments.
+	config              *common.Config // The configuration settings for the WAL.
 }
 
 // OpenWAL opens the Write-Ahead Log (WAL) with the given configuration.
 // It returns a pointer to the WriteAheadLog.
-func OpenWAL(config common.Config) *WriteAheadLog {
+func OpenWAL(config *common.Config) *WriteAheadLog {
 	segments := openAllSegments(config.GetWalDir())
 	return NewWriteAheadLog(segments, config)
 }
@@ -60,7 +60,7 @@ func openAllSegments(walDir string) []*Segment {
 
 // NewWriteAheadLog creates a new WriteAheadLog with the given segments and configuration.
 // It returns a pointer to the WriteAheadLog.
-func NewWriteAheadLog(segments []*Segment, config common.Config) *WriteAheadLog {
+func NewWriteAheadLog(segments []*Segment, config *common.Config) *WriteAheadLog {
 	lastSegment := segments[len(segments)-1]
 	segments = segments[:len(segments)-1]
 
@@ -70,7 +70,7 @@ func NewWriteAheadLog(segments []*Segment, config common.Config) *WriteAheadLog 
 		config:              config,
 	}
 
-	wal.logCleaner = NewTimeBasedLogCleaner(&config, wal)
+	wal.logCleaner = NewTimeBasedLogCleaner(config, wal)
 	wal.logCleaner.Startup()
 
 	return wal

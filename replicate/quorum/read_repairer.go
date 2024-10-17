@@ -78,11 +78,11 @@ func (rr *ReadRepairer) readRepair(latestStoredValue StoredValue) (StoredValue, 
 		return latestStoredValue, nil
 	}
 
-	var responseFutures []<-chan common.CompletionResult[common.RequestOrResponse]
+	var responseFutures []<-chan common.CompletionResult[any]
 	writeRequest := rr.createSetValueRequest(latestStoredValue.Key, latestStoredValue.Value, latestStoredValue.Timestamp)
 
 	for _, node := range nodesHavingStaleValues {
-		completionCallback := vsr.NewCompletionCallback[common.RequestOrResponse]()
+		completionCallback := vsr.NewCompletionCallback[any]()
 		rr.logger.Printf("Sending read repair request to %v: %s", node, latestStoredValue.Value)
 		responseFutures = append(responseFutures, completionCallback.GetFuture())
 		rr.replica.SendMessageToReplica(completionCallback, node, writeRequest)
