@@ -116,31 +116,31 @@ func NewQuorumKVStore(
 
 // OnStart is invoked when the Replica starts.
 // It implements the ReplicaInitializer interface to perform any startup routines.
-func (q *KVStore) OnStart() {
-	q.logger.Println("KVStore started.")
+func (s *KVStore) OnStart() {
+	s.logger.Println("KVStore started.")
 	// Additional startup logic can be added here if needed
 }
 
 // RegisterHandlers sets up all necessary message handlers for the KVStore.
 // It implements the ReplicaInitializer interface to ensure message processing is correctly
 // routed to the appropriate handler functions.
-func (q *KVStore) RegisterHandlers() {
+func (s *KVStore) RegisterHandlers() {
 	// Register handlers for messages received from other replicas (one-way messages).
-	q.HandlesMessage(common.VersionedSetValueRequest, q.handleSetValueRequest, new(messages.VersionedSetValueRequest))
-	q.HandlesMessage(common.SetValueResponse, q.handleSetValueResponse, new(messages.SetValueResponse))
-	q.HandlesMessage(common.VersionedGetValueRequest, q.handleGetValueRequest, new(messages.GetValueRequest))
-	q.HandlesMessage(common.GetValueResponse, q.handleGetValueResponse, new(messages.GetValueResponse))
+	s.HandlesMessage(common.VersionedSetValueRequest, s.handleSetValueRequest, new(messages.VersionedSetValueRequest))
+	s.HandlesMessage(common.SetValueResponse, s.handleSetValueResponse, new(messages.SetValueResponse))
+	s.HandlesMessage(common.VersionedGetValueRequest, s.handleGetValueRequest, new(messages.GetValueRequest))
+	s.HandlesMessage(common.GetValueResponse, s.handleGetValueResponse, new(messages.GetValueResponse))
 
 	// Register handlers for client-initiated requests that expect responses.
-	q.HandlesRequestAsync(common.SetValueRequest, q.handleClientSetValueRequest, new(messages.SetValueRequest))
-	q.HandlesRequestAsync(common.GetValueRequest, q.handleClientGetValueRequest, new(messages.GetValueRequest))
+	s.HandlesRequestAsync(common.SetValueRequest, s.handleClientSetValueRequest, new(messages.SetValueRequest))
+	s.HandlesRequestAsync(common.GetValueRequest, s.handleClientGetValueRequest, new(messages.GetValueRequest))
 }
 
 // SendHeartbeats sends periodic heartbeat messages to all replica nodes.
 // It implements the HeartbeatHandler interface to maintain liveness information.
 // The heartbeat mechanism is crucial for leader election and detecting failed replicas.
-func (q *KVStore) SendHeartbeats() {
-	q.logger.Println("Sending heartbeats to replicas.")
+func (s *KVStore) SendHeartbeats() {
+	s.logger.Println("Sending heartbeats to replicas.")
 	// Example heartbeat message creation and sending can be implemented here.
 	// heartbeatMsg := &heartbeat.Heartbeat{
 	// 	Timestamp: q.clientState.GetTimestamp(),
@@ -151,73 +151,73 @@ func (q *KVStore) SendHeartbeats() {
 // CheckLeader verifies if the current node holds the leadership role.
 // It implements the HeartbeatHandler interface to participate in leader election.
 // Leader status determines if the node can perform certain privileged operations.
-func (q *KVStore) CheckLeader() {
-	q.logger.Println("Checking leader status.")
+func (s *KVStore) CheckLeader() {
+	s.logger.Println("Checking leader status.")
 	// Implement leader election logic based on received heartbeats.
 	// This is a placeholder for the actual implementation.
 }
 
 // handleSetValueRequest processes incoming VersionedSetValueRequest messages from peer replicas.
 // It ensures that only newer versions of a key-value pair are stored to maintain consistency.
-func (q *KVStore) handleSetValueRequest(message common.Message[any]) {
+func (s *KVStore) handleSetValueRequest(message common.Message[any]) {
 	setValueReq := message.MessagePayload().(*messages.VersionedSetValueRequest)
 
-	storedValue, err := q.Get(setValueReq.Key)
+	storedValue, err := s.Get(setValueReq.Key)
 	if err != nil {
-		q.logger.Printf("Error retrieving key %s: %v", setValueReq.Key, err)
+		s.logger.Printf("Error retrieving key %s: %v", setValueReq.Key, err)
 		// Should we return an error?
 	}
 
 	if storedValue.Timestamp < setValueReq.Version {
-		q.logger.Printf("Updating key %s with newer value: %s", setValueReq.Key, setValueReq.Value)
+		s.logger.Printf("Updating key %s with newer value: %s", setValueReq.Key, setValueReq.Value)
 		newStoredValue := &StoredValue{
 			Key:        setValueReq.Key,
 			Value:      setValueReq.Value,
 			Timestamp:  setValueReq.Version,
 			Generation: 1,
 		}
-		if err := q.Put(setValueReq.Key, newStoredValue); err != nil {
-			q.logger.Printf("Error setting key %s: %v", setValueReq.Key, err)
+		if err := s.Put(setValueReq.Key, newStoredValue); err != nil {
+			s.logger.Printf("Error setting key %s: %v", setValueReq.Key, err)
 			// Should we return an error?
 		}
 	} else {
-		q.logger.Printf("Ignoring set for key %s: existing timestamp %d >= request version %d",
+		s.logger.Printf("Ignoring set for key %s: existing timestamp %d >= request version %d",
 			setValueReq.Key, storedValue.Timestamp, setValueReq.Version)
 	}
 
 	// Send a one-way response back to the sender indicating the operation was processed.
 	response := messages.NewSetValueResponse("Success")
-	q.SendOneway(message.Header.FromAddress, response, message.Header.CorrelationId)
+	s.SendOneway(message.Header.FromAddress, response, message.Header.CorrelationId)
 }
 
 // handleSetValueResponse processes SetValueResponse messages from peer replicas.
 // It delegates the response to the RequestWaitingList to handle asynchronous operations.
-func (q *KVStore) handleSetValueResponse(message common.Message[any]) {
+func (s *KVStore) handleSetValueResponse(message common.Message[any]) {
 	setResp, ok := message.Payload.(*messages.SetValueResponse)
 	if !ok {
-		q.logger.Println("Received invalid SetValueResponse message.")
+		s.logger.Println("Received invalid SetValueResponse message.")
 		return
 	}
 	// Delegate the response to the RequestWaitingList
-	q.HandleResponse(message.Header.CorrelationId, setResp)
+	s.HandleResponse(message.Header.CorrelationId, setResp)
 }
 
 // handleGetValueResponse processes GetValueResponse messages from peer replicas.
 // It delegates the response to the RequestWaitingList to handle asynchronous operations.
-func (q *KVStore) handleGetValueResponse(message common.Message[any]) {
+func (s *KVStore) handleGetValueResponse(message common.Message[any]) {
 	getResp, ok := message.Payload.(*messages.GetValueResponse)
 	if !ok {
-		q.logger.Println("Received invalid GetValueResponse message.")
+		s.logger.Println("Received invalid GetValueResponse message.")
 		return
 	}
 	// Delegate the response to the RequestWaitingList
-	q.HandleResponse(message.Header.CorrelationId, getResp)
+	s.HandleResponse(message.Header.CorrelationId, getResp)
 }
 
 // handleClientSetValueRequest handles client-initiated SetValue requests asynchronously.
 // It propagates the request to all replicas and waits for a quorum of acknowledgments.
 // NOTE: This is basically Last Write Wins (LWW).
-func (q *KVStore) handleClientSetValueRequest(message common.Message[any]) (any, error) {
+func (s *KVStore) handleClientSetValueRequest(message common.Message[any]) (any, error) {
 	clientReq, ok := message.Payload.(*messages.SetValueRequest)
 	if !ok {
 		return nil, errors.New("invalid SetValueRequest payload")
@@ -229,14 +229,14 @@ func (q *KVStore) handleClientSetValueRequest(message common.Message[any]) (any,
 		Value:         clientReq.Value,
 		ClientID:      clientReq.ClientID,
 		RequestNumber: clientReq.RequestNumber,
-		Version:       q.clientState.GetTimestamp(),
+		Version:       s.clientState.GetTimestamp(),
 	}
 
 	// Initialize a quorum callback to track responses from replicas.
-	quorumCallback := common.NewAsyncQuorumCallback[any](q.Quorum())
+	quorumCallback := common.NewAsyncQuorumCallback[any](s.Quorum())
 
 	// Send the VersionedSetValueRequest to all replicas.
-	q.SendMessageToReplicas(quorumCallback, common.VersionedSetValueRequest, requestToReplicas)
+	s.SendMessageToReplicas(quorumCallback, common.VersionedSetValueRequest, requestToReplicas)
 
 	// Wait for a quorum of responses or timeout.
 	select {
@@ -249,25 +249,25 @@ func (q *KVStore) handleClientSetValueRequest(message common.Message[any]) (any,
 
 // handleClientGetValueRequest handles client-initiated GetValue requests asynchronously.
 // It queries all replicas and performs read repair based on the responses received from a quorum.
-func (q *KVStore) handleClientGetValueRequest(message common.Message[any]) (any, error) {
+func (s *KVStore) handleClientGetValueRequest(message common.Message[any]) (any, error) {
 	clientReq, ok := message.Payload.(*messages.GetValueRequest)
 	if !ok {
 		return nil, errors.New("invalid GetValueRequest payload")
 	}
 
-	q.logger.Printf("Handling get request for key: %s in %s", clientReq.Key, q.GetName())
+	s.logger.Printf("Handling get request for key: %s in %s", clientReq.Key, s.GetName())
 
 	requestToReplicas := &messages.GetValueRequest{Key: clientReq.Key}
 
 	// Initialize a quorum callback to collect responses from replicas.
-	quorumCallback := common.NewAsyncQuorumCallback[messages.GetValueResponse](q.Quorum())
+	quorumCallback := common.NewAsyncQuorumCallback[messages.GetValueResponse](s.Quorum())
 
 	// Adapter to handle type conversion for the quorum callback.
 	// There is probably a better way to do this, but i'm not sure what it is....
 	adapter := &AnyRequestCallback[messages.GetValueResponse]{Callback: quorumCallback}
 
 	// Send the GetValueRequest to all replicas.
-	q.SendMessageToReplicas(adapter, common.VersionedGetValueRequest, requestToReplicas)
+	s.SendMessageToReplicas(adapter, common.VersionedGetValueRequest, requestToReplicas)
 
 	// Wait for a quorum of responses or timeout and perform read repair if necessary.
 	select {
@@ -277,7 +277,7 @@ func (q *KVStore) handleClientGetValueRequest(message common.Message[any]) (any,
 		}
 
 		// Perform read repair to ensure consistency across replicas.
-		readRepairer := NewReadRepairer(q.Replica, quorumResult.Responses, q.config.IsAsyncReadRepair(), q.logger)
+		readRepairer := NewReadRepairer(s.Replica, quorumResult.Responses, s.config.IsAsyncReadRepair(), s.logger)
 		finalResponse := readRepairer.ReadRepair()
 		return finalResponse, nil
 	case <-time.After(5 * time.Second):
@@ -312,30 +312,30 @@ func (arc *AnyRequestCallback[T]) OnError(err error) {
 
 // handleGetValueRequest processes incoming GetValueRequest messages from peer replicas.
 // It retrieves the requested value and responds back to the requester.
-func (q *KVStore) handleGetValueRequest(message common.Message[any]) {
+func (s *KVStore) handleGetValueRequest(message common.Message[any]) {
 	getValueReq, ok := message.MessagePayload().(*messages.GetValueRequest)
 	if !ok {
-		q.logger.Println("Received invalid GetValueRequest message.")
+		s.logger.Println("Received invalid GetValueRequest message.")
 		return
 	}
 
-	storedValue, err := q.Get(getValueReq.Key)
+	storedValue, err := s.Get(getValueReq.Key)
 	if err != nil {
-		q.logger.Printf("Error retrieving key %s: %v", getValueReq.Key, err)
+		s.logger.Printf("Error retrieving key %s: %v", getValueReq.Key, err)
 		// Respond with an empty StoredValue on error to indicate absence.
 		storedValue = &Empty
 	}
 
-	q.logger.Printf("Retrieving value for key %s: %+v from %s", getValueReq.Key, storedValue, q.GetName())
+	s.logger.Printf("Retrieving value for key %s: %+v from %s", getValueReq.Key, storedValue, s.GetName())
 
 	response := &messages.GetValueResponse{Value: *storedValue}
-	q.SendOneway(message.Header.FromAddress, response, message.Header.CorrelationId)
+	s.SendOneway(message.Header.FromAddress, response, message.Header.CorrelationId)
 }
 
 // makeNewConfigWithSystemWalDir creates a new Config instance with a dedicated WAL directory for system storage.
 // This separation ensures that system-related WAL logs do not interfere with client-facing storage.
-func (q *KVStore) makeNewConfigWithSystemWalDir(config *common.Config) (*common.Config, error) {
-	systemWalDir, err := q.makeSystemWalDir(config)
+func (s *KVStore) makeNewConfigWithSystemWalDir(config *common.Config) (*common.Config, error) {
+	systemWalDir, err := s.makeSystemWalDir(config)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +344,7 @@ func (q *KVStore) makeNewConfigWithSystemWalDir(config *common.Config) (*common.
 
 // makeSystemWalDir constructs the file path for the system WAL directory and ensures the directory exists.
 // This directory is used for storing internal WAL logs required for system operations.
-func (q *KVStore) makeSystemWalDir(config *common.Config) (string, error) {
+func (s *KVStore) makeSystemWalDir(config *common.Config) (string, error) {
 	systemWalDir := filepath.Join(config.GetWalDir(), "_System")
 	if err := os.MkdirAll(systemWalDir, os.ModePerm); err != nil {
 		return "", err
@@ -354,13 +354,13 @@ func (q *KVStore) makeSystemWalDir(config *common.Config) (string, error) {
 
 // incrementAndGetGeneration increments the generation counter in the system storage and returns the new value.
 // The generation counter is used for versioning to track changes over time.
-func (q *KVStore) incrementAndGetGeneration() (int, error) {
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
+func (s *KVStore) incrementAndGetGeneration() (int, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	s := q.systemStorage.Get("generation")
+	s := s.systemStorage.Get("generation")
 
-	currentGeneration := q.firstGeneration
+	currentGeneration := s.firstGeneration
 	if s != "" {
 		gen, err := strconv.Atoi(s)
 		if err != nil {
@@ -369,7 +369,7 @@ func (q *KVStore) incrementAndGetGeneration() (int, error) {
 		currentGeneration = gen + 1
 	}
 
-	q.systemStorage.Put("generation", strconv.Itoa(currentGeneration))
+	s.systemStorage.Put("generation", strconv.Itoa(currentGeneration))
 
 	return currentGeneration, nil
 }
@@ -377,20 +377,20 @@ func (q *KVStore) incrementAndGetGeneration() (int, error) {
 // Put stores a key-value pair in the durable store.
 // The value is serialized to JSON before being persisted.
 // This ensures that data is durable and can survive restarts or failures.
-func (q *KVStore) Put(key string, storedValue *StoredValue) error {
+func (s *KVStore) Put(key string, storedValue *StoredValue) error {
 	valueBytes, err := json.Marshal(storedValue)
 	if err != nil {
 		return err
 	}
-	q.durableStore.Put(key, string(valueBytes))
+	s.durableStore.Put(key, string(valueBytes))
 	return nil
 }
 
 // Get retrieves a StoredValue by key from the durable store.
 // If the key does not exist, it returns an empty StoredValue.
 // The value is deserialized from JSON format.
-func (q *KVStore) Get(key string) (*StoredValue, error) {
-	storedValueStr := q.durableStore.Get(key)
+func (s *KVStore) Get(key string) (*StoredValue, error) {
+	storedValueStr := s.durableStore.Get(key)
 
 	if storedValueStr == "" {
 		return &Empty, nil
@@ -406,8 +406,8 @@ func (q *KVStore) Get(key string) (*StoredValue, error) {
 
 // GetValue retrieves the value associated with the given key.
 // It fetches the StoredValue and returns its Value field.
-func (q *KVStore) GetValue(key string) (string, error) {
-	storedValue, err := q.Get(key)
+func (s *KVStore) GetValue(key string) (string, error) {
+	storedValue, err := s.Get(key)
 	if err != nil {
 		return "", err
 	}
@@ -416,10 +416,10 @@ func (q *KVStore) GetValue(key string) (string, error) {
 
 // DoAsyncReadRepair enables asynchronous read repair to maintain consistency across replicas.
 // Read repair helps to fix any inconsistencies detected during read operations by updating out-of-date replicas.
-func (q *KVStore) DoAsyncReadRepair() {
-	q.config.SetAsyncReadRepair()
+func (s *KVStore) DoAsyncReadRepair() {
+	s.config.SetAsyncReadRepair()
 }
 
 // SetClock updates the system clock used by the KVStore for timestamp management.
 // This allows the KVStore to synchronize its operations with an external clock source if needed.
-func (q *KVStore) SetClock(clock *common.SystemClock) { q.clientState.clock = clock }
+func (s *KVStore) SetClock(clock *common.SystemClock) { s.clientState.clock = clock }
