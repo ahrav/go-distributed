@@ -358,11 +358,11 @@ func (s *KVStore) incrementAndGetGeneration() (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s := s.systemStorage.Get("generation")
+	gen := s.systemStorage.Get("generation")
 
 	currentGeneration := s.firstGeneration
-	if s != "" {
-		gen, err := strconv.Atoi(s)
+	if gen != "" {
+		gen, err := strconv.Atoi(gen)
 		if err != nil {
 			return 0, err
 		}
