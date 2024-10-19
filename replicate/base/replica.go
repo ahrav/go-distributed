@@ -442,8 +442,8 @@ func (r *Replica) HandleResponse(correlationID int, response any) {
 	r.requestWaitingList.HandleResponse(correlationID, response)
 }
 
-// getServerID returns the server ID from the configuration.
-func (r *Replica) getServerID() int { return r.config.GetServerId() }
+// GetServerID returns the server ID from the configuration.
+func (r *Replica) GetServerID() int { return r.config.GetServerId() }
 
 // newCorrelationID generates a new random correlation ID.
 func (r *Replica) newCorrelationID() int { return rand.Int() }

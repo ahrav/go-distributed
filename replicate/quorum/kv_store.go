@@ -216,6 +216,7 @@ func (q *KVStore) handleGetValueResponse(message common.Message[any]) {
 
 // handleClientSetValueRequest handles client-initiated SetValue requests asynchronously.
 // It propagates the request to all replicas and waits for a quorum of acknowledgments.
+// NOTE: This is basically Last Write Wins (LWW).
 func (q *KVStore) handleClientSetValueRequest(message common.Message[any]) (any, error) {
 	clientReq, ok := message.Payload.(*messages.SetValueRequest)
 	if !ok {
